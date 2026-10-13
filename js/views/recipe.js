@@ -1,8 +1,9 @@
-import { recipeById, recipes } from "../data/recipes.js";
-import { capsuleById, familyLabel } from "../data/capsules.js";
+import { recipeById, recipes, capsuleCount } from "../data/recipes.js";
+import { capsuleById } from "../data/capsules.js";
 import { icon } from "../components/icons.js";
 import { isFavorite, toggleFavorite } from "../state.js";
 import { showToast } from "../components/toast.js";
+import { photo } from "../components/photo.js";
 
 export function renderRecipe(params, state) {
   const r = recipeById(params.id);
@@ -16,11 +17,14 @@ export function renderRecipe(params, state) {
       </div>`;
   }
 
-  const capsule = capsuleById(r.capsuleId);
+  const primaryCapsule = capsuleById(r.capsuleId);
+  const usedCapsules = capsuleList(r);
   const fav = isFavorite({ kind: "recipe", id: r.id });
   const totalSeconds = r.steps
     .filter((s) => s.timerSeconds)
     .reduce((sum, s) => sum + s.timerSeconds, 0);
+  const capCount = capsuleCount(r);
+  const servings = r.servings || 1;
 
   return `
     <div class="view">
@@ -29,16 +33,39 @@ export function renderRecipe(params, state) {
         ${fav ? icon("heartFilled") : icon("heart")}
       </button>
       <section class="recipe-hero">
-        <a class="back-link" href="${capsule ? `#/capsula/${capsule.id}` : "#/recetas"}">${icon("chevronLeft")} ${
-    capsule ? capsule.name : "Volver"
+        <a class="back-link" href="${primaryCapsule ? `#/capsula/${primaryCapsule.id}` : "#/recetas"}">${icon("chevronLeft")} ${
+    primaryCapsule ? primaryCapsule.name : "Volver"
   }</a>
         <div class="recipe-hero__type">
           <span class="pill pill--apricot">${labelForType(r.type)}</span>
           <span class="pill pill--coral">Intensidad ${r.intensity}</span>
-          <span class="pill pill--meadow">${Math.ceil(totalSeconds / 60)} min</span>
+          <span class="pill pill--meadow">${servings > 1 ? `${servings} personas` : `${Math.max(1, Math.ceil(totalSeconds / 60))} min`}</span>
+          ${capCount > 1 ? `<span class="pill pill--ghost">${capCount} cápsulas</span>` : ""}
         </div>
         <h1 class="recipe-hero__title">${r.name}</h1>
         <p class="recipe-hero__lead">${r.blurb}</p>
+        ${photo({ src: r.image, alt: r.name, shape: "oval", aspect: "4/5" }).replace(
+          'class="photo photo--oval"',
+          'class="photo photo--oval recipe-hero__photo"'
+        )}
+      </section>
+
+      <hr class="hairline" />
+
+      <section class="section">
+        <div class="section__eyebrow"><span class="label">${capCount > 1 ? `Cápsulas (${capCount})` : "Cápsula"}</span></div>
+        <div class="capsule-list">
+          ${usedCapsules
+            .map(
+              (c) => `
+            <a class="capsule-list__row" href="#/capsula/${c.id}" style="--pod:${c.pod}">
+              <span class="capsule-list__swatch" aria-hidden="true"></span>
+              <span class="capsule-list__name">${c.qty > 1 ? `${c.qty}× ${c.name}` : c.name}</span>
+              <span class="capsule-list__count">Int. ${c.intensity}</span>
+            </a>`
+            )
+            .join("")}
+        </div>
       </section>
 
       <hr class="hairline" />
@@ -76,6 +103,23 @@ export function renderRecipe(params, state) {
               <div class="step__body">
                 <p class="step__text">${s.text}</p>
                 ${
+                  Array.isArray(s.substeps) && s.substeps.length
+                    ? `<ol class="step__substeps">${s.substeps
+                        .map((sub) => `<li>${sub}</li>`)
+                        .join("")}</ol>`
+                    : ""
+                }
+                ${
+                  s.tip
+                    ? `<aside class="step__aside step__aside--tip">${asideIcon("info")}<span>${s.tip}</span></aside>`
+                    : ""
+                }
+                ${
+                  s.warn
+                    ? `<aside class="step__aside step__aside--warn">${asideIcon("warn")}<span>${s.warn}</span></aside>`
+                    : ""
+                }
+                ${
                   s.timerSeconds
                     ? `<span class="step__meta">
                         <span class="step__timer" data-step-timer="${i}" data-seconds="${s.timerSeconds}">
@@ -99,7 +143,7 @@ export function renderRecipe(params, state) {
       ${
         r.tip
           ? `<section class="section">
-              <div class="section__eyebrow"><span class="label">Consejo</span></div>
+              <div class="section__eyebrow"><span class="label">Consejo general</span></div>
               <p class="section__lead">${r.tip}</p>
             </section>`
           : ""
@@ -129,6 +173,33 @@ export function renderRecipe(params, state) {
       </section>
     </div>
   `;
+}
+
+function asideIcon(kind) {
+  if (kind === "warn") {
+    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2 20h20z"/><path d="M12 11v4"/><circle cx="12" cy="17.5" r="0.8" fill="currentColor"/></svg>`;
+  }
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.8" fill="currentColor"/></svg>`;
+}
+
+function capsuleList(r) {
+  // Agrupa por id y devuelve cada cápsula con su cantidad.
+  // Ej: ["arpeggio","arpeggio","ristretto"] →
+  //   [{ id:"arpeggio", qty:2, ...}, { id:"ristretto", qty:1, ...}]
+  const counts = new Map();
+  if (Array.isArray(r.capsules) && r.capsules.length) {
+    for (const id of r.capsules) {
+      counts.set(id, (counts.get(id) || 0) + 1);
+    }
+  } else if (r.capsuleId) {
+    counts.set(r.capsuleId, 1);
+  }
+  const out = [];
+  for (const [id, qty] of counts.entries()) {
+    const c = capsuleById(id);
+    if (c) out.push({ ...c, qty });
+  }
+  return out;
 }
 
 export function bindRecipeFavorites(root) {

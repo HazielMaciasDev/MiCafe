@@ -1,5 +1,6 @@
-import { recipes } from "../data/recipes.js";
+import { recipes, capsuleCount } from "../data/recipes.js";
 import { icon } from "../components/icons.js";
+import { photo } from "../components/photo.js";
 
 export function renderRecipeList() {
   // Group by type for an editorial cadence
@@ -16,6 +17,7 @@ export function renderRecipeList() {
         <div class="hero__row">
           <span class="pill pill--coral">${recipes.length} recetas</span>
           <span class="pill pill--apricot">Original Line</span>
+          <span class="pill pill--meadow">1 a 4 cápsulas</span>
         </div>
         <h1 class="hero__title" style="font-size: clamp(56px, 16vw, 88px)">
           <em>Recetas</em><br>
@@ -28,12 +30,18 @@ export function renderRecipeList() {
         .map((g) => {
           const items = recipes.filter((r) => r.type === g.id);
           if (items.length === 0) return "";
+          const withImg = items.find((r) => r.image);
           return `
             <section class="section section--first">
               <div class="section__eyebrow">
                 <span class="label">${g.title}</span>
                 <span class="label" style="color: var(--color-ash-soft)">${g.label}</span>
               </div>
+              ${
+                withImg
+                  ? `<div class="hero__photo">${photo({ src: withImg.image, alt: withImg.name, shape: "oval", aspect: "4/5" })}</div>`
+                  : ""
+              }
               <div class="recipe-list">
                 ${items
                   .map(
@@ -41,7 +49,7 @@ export function renderRecipeList() {
                   <a class="recipe-list__item" href="#/receta/${r.id}">
                     <span>
                       <span class="recipe-list__name">${r.name}</span>
-                      <span class="recipe-list__sub">${intensityLabel(r.intensity)} · ${g.label}</span>
+                      <span class="recipe-list__sub">${intensityLabel(r.intensity)} · ${capsuleLabel(r)}</span>
                     </span>
                     ${icon("chevron")}
                   </a>
@@ -62,4 +70,10 @@ function intensityLabel(level) {
   return (
     { suave: "Suave", medio: "Medio", intenso: "Intenso" }[level] || "Café"
   );
+}
+
+function capsuleLabel(r) {
+  const n = capsuleCount(r);
+  if (n === 1) return r.servings > 1 ? `${r.servings} personas` : "1 cápsula";
+  return `${n} cápsulas`;
 }

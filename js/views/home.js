@@ -1,15 +1,32 @@
 import { capsules, familyLabel } from "../data/capsules.js";
 import { recipes } from "../data/recipes.js";
 import { icon } from "../components/icons.js";
+import { photo } from "../components/photo.js";
 
 export function renderHome(state) {
-  const featured = ["kazaar", "arpeggio", "volluto", "ristretto", "fortissio-lungo", "master-origin-ethiopia"]
+  const featured = [
+    "kazaar",
+    "arpeggio",
+    "volluto",
+    "ristretto",
+    "fortissio-lungo",
+    "master-origin-ethiopia",
+  ]
     .map((id) => capsules.find((c) => c.id === id))
     .filter(Boolean);
 
-  const featuredRecipes = ["espresso-clasico", "cortado", "capuchino", "cafe-helado"]
+  const featuredRecipes = [
+    "espresso-clasico",
+    "cortado",
+    "capuchino",
+    "cafe-bombon",
+    "doppio",
+    "iced-latte-grande",
+  ]
     .map((id) => recipes.find((r) => r.id === id))
     .filter(Boolean);
+
+  const withImage = featuredRecipes.filter((r) => r.image);
 
   return `
     <div class="view">
@@ -17,7 +34,7 @@ export function renderHome(state) {
         <div class="hero__row">
           <span class="pill pill--coral">Essenza Mini</span>
           <span class="pill pill--apricot">Original Line</span>
-          <span class="pill pill--meadow">${capsules.length} cápsulas</span>
+          <span class="pill pill--meadow">${recipes.length} recetas</span>
         </div>
         <h1 class="hero__title">
           <em>Recetas para tu</em><br>
@@ -25,20 +42,79 @@ export function renderHome(state) {
           <em>sin dudar.</em>
         </h1>
         <p class="hero__sub">
-          Una guía quieta para tu cafetera. Notas de cata, tiempos exactos y combinaciones con leche, todo en un solo lugar.
+          Una guía quieta para tu cafetera. Notas de cata, tiempos exactos y combinaciones con leche — desde un espresso seco hasta un jarra fría.
         </p>
         <div class="hero__meta">
           <span class="hero__dot"></span>
-          <span class="label label--bone">${recipes.length} recetas curadas</span>
+          <span class="label label--bone">${capsules.length} cápsulas · ${recipes.length} recetas curadas</span>
         </div>
+        ${photo({ src: withImage[0]?.image, alt: "Espresso doble en tacita", shape: "oval", aspect: "4/5" }).replace(
+          'class="photo photo--oval"',
+          'class="photo photo--oval hero__photo"'
+        )}
       </section>
 
       <hr class="hairline" />
 
       <section class="section section--first">
+        <div class="section__eyebrow"><span class="label">Recetas</span></div>
+        <h2 class="section__title">Para empezar<br/>esta semana</h2>
+        <p class="section__lead">Seis clásicos que cubren todas las horas del día. Toca una receta para abrir la guía paso a paso.</p>
+        <div class="cards" style="grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          ${withImage
+            .slice(0, 4)
+            .map(
+              (r) => `
+            <a class="recipe-card" href="#/receta/${r.id}">
+              ${photo({ src: r.image, alt: r.name, shape: "rect", aspect: "4/5" }).replace(
+                'class="photo photo--rect"',
+                'class="photo photo--rect recipe-card__photo"'
+              )}
+              <div class="recipe-card__body">
+                <span class="recipe-card__title">${r.name}</span>
+                <span class="recipe-card__sub">${labelForType(r.type)}</span>
+                <div class="recipe-card__pills">
+                  <span class="pill pill--ghost">Intensidad ${r.intensity}</span>
+                </div>
+              </div>
+            </a>`
+            )
+            .join("")}
+        </div>
+      </section>
+
+      <hr class="hairline" />
+
+      <section class="section">
+        <div class="section__eyebrow"><span class="label">Más recetario</span></div>
+        <h2 class="section__title">Todas las<br/>recetas</h2>
+        <p class="section__lead">Ordenadas por tipo de preparación. Toca cualquiera para abrir la guía.</p>
+        <div class="recipe-list">
+          ${featuredRecipes
+            .map(
+              (r) => `
+            <a class="recipe-list__item" href="#/receta/${r.id}">
+              <span>
+                <span class="recipe-list__name">${r.name}</span>
+                <span class="recipe-list__sub">${labelForType(r.type)} · ${capsuleCountLabel(r)}</span>
+              </span>
+              ${icon("chevron")}
+            </a>
+          `
+            )
+            .join("")}
+        </div>
+        <div class="mt-6">
+          <a class="cta cta--ghost" href="#/recetas">Ver las ${recipes.length} recetas →</a>
+        </div>
+      </section>
+
+      <hr class="hairline" />
+
+      <section class="section">
         <div class="section__eyebrow"><span class="label">Curado</span></div>
         <h2 class="section__title">Cápsulas para<br/>empezar</h2>
-        <p class="section__lead">Las seis que mejor se entienden con tu Essenza. Escoge una para ver sus recetas.</p>
+        <p class="section__lead">Las seis que mejor se entienden con tu Essenza.</p>
         <div class="cards">
           ${featured
             .map(
@@ -88,29 +164,6 @@ export function renderHome(state) {
         </div>
       </section>
 
-      <hr class="hairline" />
-
-      <section class="section">
-        <div class="section__eyebrow"><span class="label">Para empezar</span></div>
-        <h2 class="section__title">Recetas<br/>imprescindibles</h2>
-        <p class="section__lead">Cuatro clásicos que cubren todas las horas del día.</p>
-        <div class="recipe-list">
-          ${featuredRecipes
-            .map(
-              (r) => `
-            <a class="recipe-list__item" href="#/receta/${r.id}">
-              <span>
-                <span class="recipe-list__name">${r.name}</span>
-                <span class="recipe-list__sub">${labelForType(r.type)}</span>
-              </span>
-              ${icon("chevron")}
-            </a>
-          `
-            )
-            .join("")}
-        </div>
-      </section>
-
       <div class="empty" style="padding-top: var(--space-10);">
         <p class="label">mi café · 2026</p>
       </div>
@@ -127,4 +180,11 @@ function labelForType(type) {
       iced: "Para servir frío",
     }[type] || "Receta"
   );
+}
+
+function capsuleCountLabel(r) {
+  if (Array.isArray(r.capsules) && r.capsules.length > 1) {
+    return `${r.capsules.length} cápsulas`;
+  }
+  return "1 cápsula";
 }
